@@ -23,6 +23,7 @@ def main():
     parser.add_argument('url')
     parser.add_argument('--depth', type=int, default=1)
     parser.add_argument('--pages', type=int, default=1)
+    parser.add_argument('--pages_cite', type=int, default=1)
     parser.add_argument('--output', type=str, default='output')
     parser.add_argument('--debug', action="store_true", default=False)
     args = parser.parse_args()
@@ -34,7 +35,7 @@ def main():
     g = networkx.DiGraph()
 
     # iterate through all the citation links
-    for from_pub, to_pub in get_citations(args.url, depth=args.depth, pages=args.pages):
+    for from_pub, to_pub in get_citations(args.url, depth=args.depth, pages=args.pages,pages_cite=args.pages_cite):
         if args.debug:
             print('from: %s' % json.dumps(from_pub))
         g.add_node(from_pub['id'], label=from_pub['title'], **remove_nones(from_pub))
@@ -46,7 +47,7 @@ def main():
             g.add_edge(from_pub['id'], to_pub['id'])
 
     # write the output files
-    networkx.write_gexf(g, '%s.gexf' % args.output) 
+    networkx.write_gexf(g, '%s.gexf' % args.output)
     write_html(g, '%s.html' % args.output)
 
     # close the browser
@@ -56,7 +57,7 @@ def get_cluster_id(url):
     """
     Google assign a cluster identifier to a group of web documents
     that appear to be the same publication in different places on the web.
-    How they do this is a bit of a mystery, but this identifier is 
+    How they do this is a bit of a mystery, but this identifier is
     important since it uniquely identifies the publication.
     """
     vals = parse_qs(urlparse(url).query).get('cluster', [])
@@ -72,8 +73,8 @@ def get_id(e):
     """
     Determining the publication id is tricky since it involves looking
     in the element for the various places a cluster id can show up.
-    If it can't find one it will use the data-cid which should be 
-    usable since it will be a dead end anyway: Scholar doesn't know of 
+    If it can't find one it will use the data-cid which should be
+    usable since it will be a dead end anyway: Scholar doesn't know of
     anything that cites it.
     """
     for a in e.find('.gs_fl a'):
@@ -83,7 +84,7 @@ def get_id(e):
             return get_cluster_id(a.attrs['href'])
     return e.attrs['data-cid']
 
-def get_citations(url, depth=1, pages=1):
+def get_citations(url, depth=1, pages=1,pages_cite=1):
     """
     Given a page of citations it will return bibliographic information
     for the source, target of a citation.
@@ -94,7 +95,7 @@ def get_citations(url, depth=1, pages=1):
     html = get_html(url)
     seen.add(url)
 
-    # get the publication that these citations reference. 
+    # get the publication that these citations reference.
     # Note: this can be None when starting with generic search results
     a = html.find('#gs_res_ccl_top a', first=True)
     if a:
@@ -102,12 +103,17 @@ def get_citations(url, depth=1, pages=1):
             'id': get_cluster_id(url),
             'title': a.text,
         }
-    else: 
+    else:
         to_pub = None
 
     for e in html.find('#gs_res_ccl_mid .gs_r'):
 
-        from_pub = get_metadata(e)
+        try:
+            from_pub = get_metadata(e)
+        except Exception as err:
+            print(err)
+            continue
+
         yield from_pub, to_pub
 
         # depth first search if we need to go deeper
@@ -115,7 +121,7 @@ def get_citations(url, depth=1, pages=1):
             yield from get_citations(
                 from_pub['cited_by_url'],
                 depth=depth-1,
-                pages=pages
+                pages=pages_cite
             )
 
     # get the next page if that's what they wanted
@@ -175,8 +181,8 @@ def get_html(url):
     """
     get_html uses selenium to drive a browser to fetch a URL, and return a
     requests_html.HTML object for it.
-    
-    If there is a captcha challenge it will alert the user and wait until 
+
+    If there is a captcha challenge it will alert the user and wait until
     it has been completed.
     """
     global driver
@@ -335,4 +341,3 @@ def to_json(g):
 
 if __name__ == "__main__":
     main()
-
