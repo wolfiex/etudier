@@ -79,6 +79,11 @@ collected from Google Scholar including:
 - *cited-by* - the number of other publications that cite the publication
 - *cited-by-url* - a Google Scholar URL for the list of citing publications
 
+### --pagecite
+
+In some cases it may be desirable to read multiple pages matching the query, but not need that many for each consequitive citation. This parameter can be used to tackle the exponential increase in pages. 
+
+
 [Theory in Anthropology since the Sixties]: https://scholar.google.com/scholar?hl=en&as_sdt=20000005&sciodt=0,21&cites=17950649785549691519&scipsc=
 [Google Scholar]: https://scholar.google.com
 [Selenium]: https://docs.seleniumhq.org/
